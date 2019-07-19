@@ -25,13 +25,13 @@ class Reporter extends JasmineConsoleReporter {
     super()
     this.caseids = []
     this.results = []
-
   }
 
   createRun(projectId, suiteId, runName = false) {
-    let now = new Date();
+    const now = new Date();
+    let previousRun;
 
-    let options = {
+    const options = {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -43,21 +43,37 @@ class Reporter extends JasmineConsoleReporter {
 
     let name = now.toLocaleString(['en-GB'], options)
 
-    if(runName){
+    if (runName) {
       name = runName
     }
 
-    api.addRun(projectId, {
-      suite_id: suiteId, name: name, include_all: false, case_ids: this.caseids,
-    }).then((r) => {
-      console.log('Created new test run: ' + name)
-      api.addResultsForCases(r.id, { results: this.results })
-        .then(() => {
-          console.log('Added test results')
-        })
-        .catch((error) => { console.log(error.message || error) })
-    }).catch((error) => { console.log(error.message || error) }
-    )
+    api.getRuns(projectId, {})
+      .then((r) => {
+        previousRun = r.find(x => x.name === runName)
+        if (!previousRun) {
+          api.addRun(projectId, {
+            suite_id: suiteId, name, include_all: false, case_ids: this.caseids,
+          }).then((r) => {
+            console.log('Created new test run: ' + name)
+            api.addResultsForCases(r.id, { results: this.results })
+              .then(() => {
+                console.log('Added test results')
+              })
+              .catch((error) => { console.log(error.message || error) })
+          }).catch((error) => { console.log(error.message || error) })
+        } else {
+          api.updateRun(previousRun.id, {
+            suite_id: suiteId, name, include_all: false, case_ids: this.caseids,
+          }).then((r) => {
+            console.log('Updated test run: ' + name)
+            api.addResultsForCases(r.id, { results: this.results })
+              .then(() => {
+                console.log('Updated test results')
+              })
+              .catch((error) => { console.log(error.message || error) })
+          }).catch((error) => { console.log(error.message || error) })
+        }
+      });
   }
 
   specDone(spec) {
